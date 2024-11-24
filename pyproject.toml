@@ -1,11 +1,15 @@
 [tool.poetry]
-name = "python-template"
+name = "csv_to_video_generator"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "A package to generate videos from CSV data"
+authors = ["Yash Kavaiya <yash@example.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<3.11"
+pandas = "^1.3.3"
+Pillow = "^8.3.2"
+moviepy = "^1.0.3"
+gTTS = "^2.2.3"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md

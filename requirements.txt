@@ -1,4 +1,0 @@
-opencv-python --upgrade --quiet
-Pillow --upgrade --quiet
-moviepy --upgrade --quiet
-gTTS --upgrade --quiet
