@@ -3,9 +3,25 @@
 <div align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"/>
   <img src="https://img.shields.io/badge/MoviePy-1.0.3-yellow?style=for-the-badge&logo=python&logoColor=white" alt="MoviePy"/>
+  <img src="https://img.shields.io/badge/Manim-0.18+-purple?style=for-the-badge&logo=python&logoColor=white" alt="Manim"/>
   <img src="https://img.shields.io/badge/gTTS-2.2.3-green?style=for-the-badge&logo=google&logoColor=white" alt="gTTS"/>
   <img src="https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge" alt="MIT License"/>
 </div>
+
+## 🎉 NEW: Automated Manim Video Generation
+
+**Now with GitHub Actions automation!** Push any `.py` file with Manim scenes, and videos are automatically generated!
+
+✨ **Features:**
+- 🚀 **Automatic rendering** on git push
+- 🎨 **High-quality animations** with Manim
+- ⚡ **Zero configuration** - just push and go
+- 📦 **Artifacts download** from GitHub Actions
+- 🎬 **Professional animations** for educational content
+
+👉 **[Quick Start Guide](MANIM_AUTOMATION.md)** | 📚 **[Scene Examples](manim_scenes/)** | ⚙️ **[Configuration](config/)**
+
+---
 
 ## 📋 Overview
 
@@ -35,14 +51,36 @@ graph TD
 
 ## 📦 Installation
 
+### Standard Installation
+
 To install the package, use the following command:
 
 ```bash
 pip install csv-to-video-generator
 ```
 
+### Manim Installation (for Automated Animations)
+
+For the new automated Manim video generation feature:
+
+**Linux/macOS:**
+```bash
+./setup_manim.sh
+```
+
+**Windows:**
+```bash
+setup_manim.bat
+```
+
+**Manual Installation:**
+```bash
+pip install manim
+pip install -r requirements-manim.txt
+```
+
 <blockquote>
-  <p>💡 <strong>Requirements:</strong> Python 3.10+, pandas, Pillow, moviepy, and gTTS</p>
+  <p>💡 <strong>Requirements:</strong> Python 3.10+, pandas, Pillow, moviepy, gTTS, and Manim (for animations)</p>
 </blockquote>
 
 ## 🛠️ Dependencies
@@ -53,6 +91,8 @@ pip install csv-to-video-generator
 | 🖌️ Pillow | ^8.3.2 | Image creation and text rendering |
 | 🎞️ moviepy | ^1.0.3 | Video editing and compilation |
 | 🔊 gTTS | ^2.2.3 | Google Text-to-Speech conversion |
+| 🎨 manim | ^0.18.0 | Mathematical animation engine (optional) |
+| 🔢 numpy | ^1.24.0 | Numerical computations |
 
 ## 📋 Features
 
@@ -103,6 +143,47 @@ video_list = video_creator.create_videos()
 final_video_path = video_creator.create_final_video(video_list)
 
 print(f"Final video created at: {final_video_path}")
+```
+
+### 🎨 Using Manim for Animated Videos
+
+Create animated scenes with Manim:
+
+```python
+# manim_scenes/my_quiz.py
+from manim import *
+
+class QuizScene(Scene):
+    def construct(self):
+        # Title
+        title = Text("Python Quiz", font_size=56, color=YELLOW)
+        self.play(Write(title))
+        self.wait(1)
+
+        # Question
+        question = Text("What is 2 + 2?", font_size=36)
+        question.next_to(title, DOWN, buff=1)
+        self.play(FadeIn(question, shift=DOWN))
+
+        # Options
+        options = VGroup(
+            Text("A) 3", font_size=28),
+            Text("B) 4", font_size=28),
+            Text("C) 5", font_size=28)
+        ).arrange(DOWN, aligned_edge=LEFT)
+        options.next_to(question, DOWN, buff=1)
+
+        for option in options:
+            self.play(FadeIn(option, shift=RIGHT), run_time=0.5)
+
+        self.wait(2)
+```
+
+**Push to GitHub and videos are automatically generated!**
+
+Or render locally:
+```bash
+manim render manim_scenes/my_quiz.py QuizScene -qh
 ```
 
 ## 🎭 Customization Options

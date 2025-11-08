@@ -1,0 +1,139 @@
+{
+  "automation": {
+    "enabled": true,
+    "trigger_on_push": true,
+    "trigger_on_pull_request": false,
+    "auto_commit_videos": true,
+    "auto_create_artifacts": true
+  },
+  "video_settings": {
+    "quality": "high_quality",
+    "format": "mp4",
+    "frame_rate": 60,
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "background_color": "#000000",
+    "transparent": false
+  },
+  "naming_convention": {
+    "pattern": "{filename}_{timestamp}",
+    "timestamp_format": "%Y%m%d_%H%M%S",
+    "include_scene_name": false,
+    "prefix": "",
+    "suffix": ""
+  },
+  "output": {
+    "directory": "generated_videos",
+    "save_logs": true,
+    "log_directory": "logs",
+    "retention_days": 30,
+    "create_thumbnails": true,
+    "thumbnail_quality": 85
+  },
+  "file_detection": {
+    "watch_directories": [
+      "manim_scenes",
+      "animations",
+      "scenes"
+    ],
+    "exclude_directories": [
+      ".github",
+      "tests",
+      "docs",
+      "node_modules",
+      "__pycache__",
+      ".git"
+    ],
+    "file_patterns": [
+      "*.py"
+    ],
+    "ignore_files": [
+      "test_*.py",
+      "*_test.py",
+      "setup.py",
+      "conftest.py"
+    ]
+  },
+  "manim_detection": {
+    "required_imports": [
+      "from manim import",
+      "import manim"
+    ],
+    "required_classes": [
+      "Scene",
+      "ThreeDScene",
+      "VectorScene",
+      "LinearTransformationScene"
+    ]
+  },
+  "rendering": {
+    "parallel_rendering": false,
+    "max_concurrent_renders": 1,
+    "timeout_minutes": 30,
+    "retry_on_failure": true,
+    "max_retries": 2,
+    "quality_presets": {
+      "low": {
+        "flag": "-ql",
+        "resolution": "854x480",
+        "fps": 15
+      },
+      "medium": {
+        "flag": "-qm",
+        "resolution": "1280x720",
+        "fps": 30
+      },
+      "high": {
+        "flag": "-qh",
+        "resolution": "1920x1080",
+        "fps": 60
+      },
+      "production": {
+        "flag": "-qp",
+        "resolution": "3840x2160",
+        "fps": 60
+      }
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "on_success": true,
+    "on_failure": true,
+    "include_preview": false,
+    "channels": []
+  },
+  "git": {
+    "auto_commit": true,
+    "commit_message_template": "🎬 Auto-generated Manim videos from {sha}",
+    "commit_user_name": "GitHub Actions Bot",
+    "commit_user_email": "github-actions[bot]@users.noreply.github.com",
+    "push_to_branch": true,
+    "create_pull_request": false
+  },
+  "artifacts": {
+    "enabled": true,
+    "retention_days": 30,
+    "include_videos": true,
+    "include_logs": true,
+    "include_thumbnails": true,
+    "compression": false
+  },
+  "csv_integration": {
+    "enabled": true,
+    "data_directory": "data",
+    "auto_load_csv": true,
+    "csv_encoding": "utf-8",
+    "default_delimiter": ","
+  },
+  "advanced": {
+    "use_docker": false,
+    "docker_image": "manimcommunity/manim:latest",
+    "custom_fonts_directory": "Fonts",
+    "enable_latex": true,
+    "latex_compiler": "xelatex",
+    "enable_caching": true,
+    "cache_directory": ".manim_cache"
+  }
+}

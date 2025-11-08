@@ -1,0 +1,246 @@
+name: Manim Video Generator
+
+on:
+  push:
+    paths:
+      - '**.py'
+      - 'manim_scenes/**/*.py'
+    branches:
+      - main
+      - master
+      - develop
+      - 'claude/**'
+  workflow_dispatch:
+    inputs:
+      scene_file:
+        description: 'Python file to render (e.g., manim_scenes/example.py)'
+        required: false
+        default: ''
+
+env:
+  PYTHON_VERSION: '3.10'
+  MANIM_QUALITY: 'high_quality'  # Options: low_quality, medium_quality, high_quality, production_quality
+  OUTPUT_DIR: 'generated_videos'
+
+jobs:
+  detect-and-render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ffmpeg \
+            libcairo2-dev \
+            libpango1.0-dev \
+            texlive \
+            texlive-latex-extra \
+            texlive-fonts-extra \
+            texlive-latex-recommended \
+            texlive-science \
+            tipa \
+            libpng-dev \
+            libfreetype6-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install manim
+          pip install pillow numpy pandas moviepy gTTS
+
+          # Install project dependencies if they exist
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f pyproject.toml ]; then
+            pip install poetry
+            poetry install --no-root || true
+          fi
+
+      - name: Detect changed Python files
+        id: detect-files
+        run: |
+          # Create output directory
+          mkdir -p ${{ env.OUTPUT_DIR }}
+
+          # Detect changed .py files
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.scene_file }}" ]; then
+            # Manual trigger with specific file
+            echo "changed_files=${{ github.event.inputs.scene_file }}" >> $GITHUB_OUTPUT
+          else
+            # Auto-detect from git diff
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep '\.py$' || echo "")
+
+            if [ -z "$CHANGED_FILES" ]; then
+              echo "No Python files changed in this push"
+              echo "changed_files=" >> $GITHUB_OUTPUT
+            else
+              echo "Changed Python files:"
+              echo "$CHANGED_FILES"
+              # Convert to space-separated for easier iteration
+              CHANGED_FILES=$(echo "$CHANGED_FILES" | tr '\n' ' ')
+              echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Render Manim videos
+        id: render
+        run: |
+          CHANGED_FILES="${{ steps.detect-files.outputs.changed_files }}"
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No files to process"
+            echo "videos_generated=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Create a log file
+          LOG_FILE="${{ env.OUTPUT_DIR }}/render_log.txt"
+          echo "Manim Video Generation Log - $(date)" > "$LOG_FILE"
+          echo "==========================================" >> "$LOG_FILE"
+
+          VIDEOS_GENERATED=false
+
+          for file in $CHANGED_FILES; do
+            # Skip if file doesn't exist or is in excluded directories
+            if [ ! -f "$file" ]; then
+              echo "Skipping $file - file not found" | tee -a "$LOG_FILE"
+              continue
+            fi
+
+            # Skip files in certain directories
+            if echo "$file" | grep -qE '^(\.github|tests|docs)/'; then
+              echo "Skipping $file - excluded directory" | tee -a "$LOG_FILE"
+              continue
+            fi
+
+            echo "" | tee -a "$LOG_FILE"
+            echo "Processing: $file" | tee -a "$LOG_FILE"
+            echo "-------------------" | tee -a "$LOG_FILE"
+
+            # Extract filename without extension
+            FILENAME=$(basename "$file" .py)
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+            # Check if file contains Manim Scene classes
+            if grep -qE "class.*\(Scene\)|from manim import|import manim" "$file"; then
+              echo "✓ Detected Manim scene in $file" | tee -a "$LOG_FILE"
+
+              # Try to render the file
+              if manim render "$file" -ql --format=mp4 --media_dir="${{ env.OUTPUT_DIR }}" 2>&1 | tee -a "$LOG_FILE"; then
+                echo "✓ Successfully rendered $file" | tee -a "$LOG_FILE"
+
+                # Find the generated video and rename it
+                LATEST_VIDEO=$(find "${{ env.OUTPUT_DIR }}" -name "*.mp4" -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -f2- -d" ")
+
+                if [ -f "$LATEST_VIDEO" ]; then
+                  NEW_NAME="${{ env.OUTPUT_DIR }}/${FILENAME}_${TIMESTAMP}.mp4"
+                  mv "$LATEST_VIDEO" "$NEW_NAME"
+                  echo "✓ Video saved as: $NEW_NAME" | tee -a "$LOG_FILE"
+                  VIDEOS_GENERATED=true
+                else
+                  echo "⚠ Warning: Video file not found after rendering" | tee -a "$LOG_FILE"
+                fi
+              else
+                echo "✗ Failed to render $file - see log for details" | tee -a "$LOG_FILE"
+              fi
+            else
+              echo "⊘ Skipping $file - no Manim Scene detected" | tee -a "$LOG_FILE"
+
+              # Try to execute as regular Python script (non-Manim)
+              echo "Attempting to run as Python script..." | tee -a "$LOG_FILE"
+              if python "$file" 2>&1 | tee -a "$LOG_FILE"; then
+                echo "✓ Successfully executed $file" | tee -a "$LOG_FILE"
+
+                # Check if any videos were generated in common output locations
+                for video in media/videos/**/*.mp4 *.mp4 videos/*.mp4 output/*.mp4; do
+                  if [ -f "$video" ]; then
+                    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                    NEW_NAME="${{ env.OUTPUT_DIR }}/${FILENAME}_${TIMESTAMP}_$(basename $video)"
+                    cp "$video" "$NEW_NAME"
+                    echo "✓ Found and saved video: $NEW_NAME" | tee -a "$LOG_FILE"
+                    VIDEOS_GENERATED=true
+                  fi
+                done
+              else
+                echo "✗ Failed to execute $file" | tee -a "$LOG_FILE"
+              fi
+            fi
+          done
+
+          echo "" | tee -a "$LOG_FILE"
+          echo "==========================================" | tee -a "$LOG_FILE"
+          echo "Rendering completed at $(date)" | tee -a "$LOG_FILE"
+
+          if [ "$VIDEOS_GENERATED" = true ]; then
+            echo "videos_generated=true" >> $GITHUB_OUTPUT
+          else
+            echo "videos_generated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload videos as artifacts
+        if: steps.render.outputs.videos_generated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: manim-videos-${{ github.sha }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/*.mp4
+            ${{ env.OUTPUT_DIR }}/render_log.txt
+          retention-days: 30
+
+      - name: Commit and push generated videos
+        if: steps.render.outputs.videos_generated == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions Bot"
+
+          git add ${{ env.OUTPUT_DIR }}/*.mp4 || true
+          git add ${{ env.OUTPUT_DIR }}/render_log.txt || true
+
+          if git diff --staged --quiet; then
+            echo "No new videos to commit"
+          else
+            git commit -m "🎬 Auto-generated Manim videos from ${{ github.sha }}"
+            git push || echo "Push failed - this may be expected if branch protection is enabled"
+          fi
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Manim Video Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "${{ env.OUTPUT_DIR }}/render_log.txt" ]; then
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat "${{ env.OUTPUT_DIR }}/render_log.txt" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No videos were generated in this run." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Generated Videos" >> $GITHUB_STEP_SUMMARY
+
+          VIDEO_COUNT=$(find "${{ env.OUTPUT_DIR }}" -name "*.mp4" -type f 2>/dev/null | wc -l)
+
+          if [ "$VIDEO_COUNT" -gt 0 ]; then
+            echo "Total videos generated: **$VIDEO_COUNT**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Videos are available in the artifacts section of this workflow run." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No videos were generated." >> $GITHUB_STEP_SUMMARY
+          fi
