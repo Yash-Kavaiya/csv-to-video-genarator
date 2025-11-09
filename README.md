@@ -16,6 +16,22 @@ This package provides powerful functionality to generate educational videos auto
 - 🎥 **Videos**: Combined image and audio clips
 - 🎞️ **Final Compilation**: Concatenated video sequence
 
+## 🤖 GitHub Actions Integration
+
+**New Feature!** This repository now includes automated video generation via GitHub Actions:
+
+- ✅ **Auto-Generate**: Automatically create videos when you push CSV files to the repository
+- 📦 **Artifacts**: Videos are saved as downloadable artifacts
+- 🔧 **Customizable**: Trigger manually or configure for automatic runs
+- 📄 **Simple Format**: Just push a CSV file with your questions and answers
+
+**Quick Start:**
+1. Add a CSV file with questions to your repository
+2. Push to GitHub - the workflow automatically generates videos
+3. Download the generated videos from the Actions tab
+
+[**📖 Full GitHub Actions Documentation**](GITHUB_ACTIONS.md) | [**Sample CSV File**](sample_questions.csv)
+
 ## ⚙️ How It Works
 
 ```mermaid

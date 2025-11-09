@@ -1,0 +1,4 @@
+question,option_a,option_b,option_c,option_d,answer,additional_info
+What is the primary goal of artificial intelligence?,Replicating human intelligence,Solving complex problems,Automating tasks,Enhancing decision-making processes,Replicating human intelligence,The primary goal of AI is to create systems that can perform tasks that typically require human intelligence.
+Which programming language is commonly used for developing AI applications?,Python,Java,C++,JavaScript,Python,Python is widely used in AI due to its extensive libraries and frameworks like TensorFlow and PyTorch.
+What does ML stand for in the context of AI?,Machine Learning,Manual Logic,Multiple Layers,Memory Loss,Machine Learning,Machine Learning is a subset of AI that enables systems to learn from data.
