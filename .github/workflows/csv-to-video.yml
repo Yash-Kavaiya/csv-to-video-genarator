@@ -1,0 +1,140 @@
+name: Generate Video from CSV
+
+on:
+  push:
+    paths:
+      - '**.csv'
+  workflow_dispatch:
+    inputs:
+      csv_file:
+        description: 'Specific CSV file to process (leave empty to process all)'
+        required: false
+        type: string
+
+jobs:
+  generate-video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick ffmpeg fonts-dejavu-core fonts-dejavu-extra
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas Pillow moviepy gTTS
+          pip install -e .
+
+      - name: Detect changed CSV files
+        id: csv-files
+        run: |
+          echo "Detecting changed CSV files..."
+
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.csv_file }}" ]; then
+            echo "Processing specific file: ${{ inputs.csv_file }}"
+            echo "csv_files=${{ inputs.csv_file }}" >> $GITHUB_OUTPUT
+          else
+            # Get list of changed CSV files from the push
+            changed_files=$(git diff --name-only HEAD~1 HEAD | grep '\.csv$' || true)
+
+            if [ -z "$changed_files" ]; then
+              echo "No CSV files changed. Checking for all CSV files..."
+              changed_files=$(find . -name "*.csv" -not -path "./.git/*" -not -path "./output/*" || true)
+            fi
+
+            if [ -z "$changed_files" ]; then
+              echo "No CSV files found"
+              echo "csv_files=" >> $GITHUB_OUTPUT
+            else
+              echo "Changed CSV files:"
+              echo "$changed_files"
+              # Convert to comma-separated list
+              csv_list=$(echo "$changed_files" | tr '\n' ',' | sed 's/,$//')
+              echo "csv_files=$csv_list" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Generate videos from CSV
+        if: steps.csv-files.outputs.csv_files != ''
+        run: |
+          # Create output directory
+          mkdir -p output
+
+          # Process CSV files
+          IFS=',' read -ra FILES <<< "${{ steps.csv-files.outputs.csv_files }}"
+          for csv_file in "${FILES[@]}"; do
+            csv_file=$(echo "$csv_file" | xargs)  # trim whitespace
+            if [ -f "$csv_file" ]; then
+              echo "Processing: $csv_file"
+              python generate_video_from_csv.py --csv-file "$csv_file" --output-dir output
+            else
+              echo "File not found: $csv_file"
+            fi
+          done
+
+      - name: List generated videos
+        if: steps.csv-files.outputs.csv_files != ''
+        run: |
+          echo "Generated videos:"
+          ls -lh output/ || echo "No videos generated"
+
+      - name: Upload video artifacts
+        if: steps.csv-files.outputs.csv_files != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-videos-${{ github.sha }}
+          path: output/*.mp4
+          retention-days: 30
+
+      - name: Commit and push videos to repository (optional)
+        if: steps.csv-files.outputs.csv_files != '' && github.event_name == 'push'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Add generated videos
+          git add output/*.mp4 || true
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No videos to commit"
+          else
+            git commit -m "Add generated videos from CSV files [skip ci]"
+            git push
+          fi
+        continue-on-error: true
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Video Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "output" ] && [ "$(ls -A output/*.mp4 2>/dev/null)" ]; then
+            echo "### Generated Videos:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            for video in output/*.mp4; do
+              if [ -f "$video" ]; then
+                filename=$(basename "$video")
+                size=$(du -h "$video" | cut -f1)
+                echo "- **$filename** ($size)" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Videos are available as artifacts in this workflow run." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No videos were generated." >> $GITHUB_STEP_SUMMARY
+          fi
