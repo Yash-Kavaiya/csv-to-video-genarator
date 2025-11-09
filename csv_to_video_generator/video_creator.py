@@ -2,7 +2,7 @@ import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 from gtts import gTTS
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
+from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
 
 class GyanDariyoVideoCreator:
     def __init__(self, data_list, image_width=1920, image_height=1080, background_color=(255, 229, 244), font_color=(229, 0, 135), font_size=90, line_spacing=10, margin=80, default_fps=24):
@@ -20,7 +20,27 @@ class GyanDariyoVideoCreator:
         for idx, data in enumerate(self.data_list):
             image = Image.new("RGB", (self.image_width, self.image_height), self.background_color)
             draw = ImageDraw.Draw(image)
-            font = ImageFont.truetype("HindVadodara-SemiBold.ttf", self.font_size)
+
+            # Try to load font with fallback options
+            try:
+                font = ImageFont.truetype("HindVadodara-SemiBold.ttf", self.font_size)
+            except OSError:
+                # Try system fonts as fallback
+                font_paths = [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                ]
+                font = None
+                for font_path in font_paths:
+                    try:
+                        font = ImageFont.truetype(font_path, self.font_size)
+                        break
+                    except OSError:
+                        continue
+                if font is None:
+                    print("Warning: Using default font")
+                    font = ImageFont.load_default()
+
             y_position = self.margin
 
             for text in data:

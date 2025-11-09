@@ -63,7 +63,20 @@ def setup_font():
             shutil.copy(roboto_font, font_name)
             return True
         else:
-            print(f"Warning: Font file not found. Video generation may fail.")
+            # Try system fonts as fallback
+            system_fonts = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/System/Library/Fonts/Helvetica.ttc",
+                "C:\\Windows\\Fonts\\arial.ttf"
+            ]
+            for sys_font in system_fonts:
+                if Path(sys_font).exists():
+                    print(f"Using system font: {sys_font}")
+                    shutil.copy(sys_font, font_name)
+                    return True
+
+            print(f"Warning: No suitable font found. Using PIL default font.")
             return False
     return True
 
